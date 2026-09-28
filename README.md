@@ -43,7 +43,7 @@ You need Rust 1.87 or newer. You also need these system libraries:
 Two libraries are optional. Use pipewire for screencast. Use systemd for session support.
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/JustRoccat/Nyx
 cd nyx
 cargo build --release
 ./target/release/nyx --help
