@@ -1,168 +1,180 @@
 # Nyx
 
-Nyx is a Wayland compositor in Rust. Windows live on a 2D infinite canvas
-that you pan and zoom with a camera, instead of sitting in columns.
-Rendering is Smithay GLES2. The codebase started from Niri: config language,
-backends, window management plumbing and protocol code are inherited from it,
-while the layout (canvas + camera + effects) is Nyx specific.
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+![Rust](https://img.shields.io/badge/rust-1.87%2B-orange.svg)
+![Wayland](https://img.shields.io/badge/wayland-compositor-green.svg)
 
-wanted to say sorry for stealing name of this wm, i wasnt aware at first so yea you could check the first nyxwm:
-https://github.com/nyangkosense/nyxwm
+> Your windows live on one huge 2D canvas. You move a camera to see them. No columns, no fixed grid.
 
-also maybe ill make a better readme later, now i dont want to lol, this one works for now
+Nyx is a window manager for Linux, written in Rust. On Wayland, this kind of program is called a "compositor". It draws your windows and handles your mouse and keyboard.
 
-## Infinite canvas
+Most window managers put windows in rows, columns, or tiles. Nyx works like a map. Each window has a fixed place on the canvas. You pan and zoom the camera to move around. You can zoom out to see all your work at once. You can zoom in on one window.
 
-Each window owns an absolute rectangle `(x, y, width, height)` in canvas
-units. Each output has a camera: center `(cam_x, cam_y)` plus `zoom`
-(`1.0` is 1:1, below is bird's eye, above is zoomed in). Screen position is
-derived per frame, windows are never moved by the camera:
+Nyx also has many visual effects. It has rounded corners, shadows, blur, and animated borders. The GPU draws all of them.
 
-```text
-screen_x = (win_x - cam_x) * zoom + out_w / 2
-screen_y = (win_y - cam_y) * zoom + out_h / 2
-screen_w = win_w * zoom
-screen_h = win_h * zoom
-```
+Nyx starts from [Niri](https://github.com/YaLTeR/niri), another Wayland compositor. Nyx keeps the config format, the backends, and the protocol code from Niri. The canvas, the camera, and the effects are new.
 
-Layer-shell surfaces (bars, launchers, notifications, wallpaper) stay pinned
-in screen space and ignore the camera.
+> [!NOTE]
+> I am sorry for using this name. I did not know about the first one. Please also look at [nyxwm](https://github.com/nyangkosense/nyxwm).
 
-Default controls (`resources/default-config.kdl`):
+> [!WARNING]
+> Nyx is version 0.1.0. Expect rough edges.
 
-| Bind | Action |
-|---|---|
-| `Mod+H/J/K/L` | pan the camera |
-| `Mod + wheel`, `Mod+Equal`, `Mod+Minus` | zoom around the cursor |
-| `Mod+0` | reset zoom to 1.0 |
-| `Mod+Tab` | bird's-eye overview, click a window to return |
-| `Mod+Home` | back to origin at 1.0 |
-| `Mod+Y`, `Mod+Shift+Y` | toggle dynamic tiling, cycle its layout |
+## Features
 
-Camera behavior is configured in `canvas { ... }`: `min-scale`, `max-scale`,
-`zoom-speed`, `overview-scale`, `pan-step`, `default-scale`,
-`keyboard-zoom-step`, `zoom-to-center`, `zoom-to-cursor`, `smooth-camera`,
-`overview-restore-zoom`, and spring physics (`stiffness`, `damping`, `mass`).
-There is also an exact `set-zoom <scale>` action (bindable, IPC callable).
+- Infinite canvas with one camera per screen
+- Pan, zoom, and a bird's-eye overview of all windows
+- Smooth camera movement with spring physics
+- Optional tiling mode: `grid`, `master-stack`, or `dwindle`
+- Rounded corners, shadows, and background blur
+- Solid or gradient borders, with an optional spinning gradient
+- Animations for open, close, move, and resize
+- Control a running Nyx with the `nyx msg` command
+- Features from Niri: floating windows, fullscreen, window rules, named workspaces, X11 apps, screenshots, and screencast
 
-## Eye candy: what actually works
+## Installation
 
-All of this renders through Smithay GLES2 shaders, configured in KDL:
+You need Rust 1.87 or newer. You also need these system libraries:
 
-- Rounded corners: SDF clipping with antialiasing (`geometry-corner-radius`
-  per window rule, `rounding-power` shaping).
-- Borders and focus rings: solid colors or static linear gradients (angle,
-  workspace-relative mode, oklab/oklch interpolation).
-- Drop shadows: softness, spread, offset, active and inactive colors, plus
-  render power and scale multipliers. They follow the corner radius.
-- Background blur: dual-Kawase down/up chain (`passes`, `offset`, `noise`,
-  `saturation`) behind translucent windows and blur regions. Fully opaque
-  content skips the blur pass.
-- Per-window opacity: global `active-opacity` / `inactive-opacity` multiplied
-  with the window-rule `opacity`. Inactive windows can also be dimmed
-  (`dim-inactive`, `dim-strength`); dimming is implemented as an alpha blend,
-  not a per-pixel darkening pass.
-- Animations: window open, close, movement and resize use configurable easing
-  or spring curves, with optional custom shaders. Open/close take a `popin`
-  start/end scale, a forced `slide` direction (30% of window size travel) and
-  a `fade` toggle. Focus changes blend active/inactive opacity, dim factor
-  and shadow color, timed by `fade-switch`, `fade-dim` and `fade-shadow`.
-  Camera moves go through the canvas spring.
-- Animated gradient borders: `border-angle { loop, angle-speed,
-  allow-constant-repaint }` rotates the border gradient at `angle-speed`
-  rad/s. Without `allow-constant-repaint` it advances on wall-clock time and
-  visibly moves only while frames render for other reasons; with the opt-in
-  the compositor repaints at monitor rate while any window is open.
-- Workspace switches take `workspace-slidefade` 0..1: 0 is the plain full
-  slide, higher values shorten the travel and dip opacity mid-switch
-  (1 is an in-place crossfade).
-- Background blur grading: `vibrancy` (extra colorfulness), `contrast` and
-  `brightness` apply in the background postprocess shader on top of
-  `saturation` and `noise`.
+- cairo, dbus, libGL, libdisplay-info, libinput
+- seatd (libseat), libxkbcommon, libgbm, pango, wayland
+- pkg-config
 
-## Dynamic tiling
+Two libraries are optional. Use pipewire for screencast. Use systemd for session support.
 
-`Mod+Y` turns the visible canvas region into a real tiling layout: `grid`,
-`master-stack` or Hyprland-style `dwindle` (`canvas { tiling { ... } }`,
-`gap`, `master-ratio`). New windows take the master slot, closing reflows the
-rest, `move-window-*` swaps slots. Turning it off flies every window back to
-its free-canvas position. While tiling is on, camera navigation (pan, zoom,
-overview, resize) is locked, because the layout is pinned to the region.
-
-## Kept from Niri
-
-KDL config with includes and validation, fullscreen and maximized windows,
-floating layer, window rules, layer rules, keybindings, workspace overview,
-XWayland via satellite, output management and hotplug, screen capture
-block-out rules, `nyx msg` IPC (`NYX_SOCKET`, `NIRI_SOCKET` still accepted),
-D-Bus, systemd and xdg-desktop-portal screencast features, screenshot UI,
-recent-windows switcher. Input goes through libinput (keyboard, mouse,
-touchpad, touch). Canvas zoom and pan are bound to keyboard and mouse only;
-there are no touch gestures for canvas navigation.
-
-## Requirements
-
-- Rust 1.87 or newer.
-- System libraries: cairo, dbus, libGL, libdisplay-info, libinput, seatd
-  (libseat), libxkbcommon, libgbm, pango, wayland, pkg-config. Optional:
-  pipewire for screencast, systemd for session integration. `flake.nix`
-  provides the full dev shell.
-- Smithay is pinned to a git revision in `Cargo.toml`. There is no wgpu
-  dependency; all rendering is GLES2 plus CPU-side math.
-- For the showcase test scripts: `kitty` (or `alacritty`). The test configs
-  optionally call the `swww` binary for wallpaper; without it they still run.
-
-## Build and run
-
-```sh
+```bash
+git clone <repo-url>
+cd nyx
 cargo build --release
 ./target/release/nyx --help
+```
+
+> [!TIP]
+> If you use Nix, `flake.nix` gives you a full dev shell. The community maintains this file.
+
+> [!NOTE]
+> There are no prebuilt packages yet.
+
+## Usage
+
+### Try it first
+
+Run Nyx inside your current Wayland session. It opens as a normal window. This is the safest way to test it.
+
+```bash
+cargo run --
+```
+
+### Use it as your session
+
+Pass `--session` only when Nyx is your login session. This flag copies the environment to the whole system.
+
+### Check a config file
+
+```bash
 ./target/release/nyx validate --config resources/default-config.kdl
 ```
 
-Inside an existing Wayland session Nyx opens as a nested window, which is the
-normal way to hack on it (`cargo run --`). Pass `--session` only when running
-as a login session (it imports the environment globally).
+### Default keys
 
-Config resolution order: `--config` flag, `NYX_CONFIG` (fallback
-`NIRI_CONFIG`), user config (created from the default on first run), then
-`/etc/nyx/config.kdl`. Full option reference: `docs/CONFIG.md` and the
-commented `resources/default-config.kdl`.
+| Key | Action |
+|---|---|
+| `Mod+H/J/K/L` | Pan the camera |
+| `Mod + mouse wheel` | Zoom at the cursor |
+| `Mod+Equal`, `Mod+Minus` | Zoom in, zoom out |
+| `Mod+0` | Reset zoom to 1.0 |
+| `Mod+Tab` | Overview of all windows. Click a window to go back. |
+| `Mod+Home` | Go back to the origin at zoom 1.0 |
+| `Mod+Y` | Turn tiling on or off |
+| `Mod+Shift+Y` | Change the tiling layout |
 
-## Tests
+> [!IMPORTANT]
+> Tiling mode locks the camera. You cannot pan, zoom, or resize until you turn tiling off. Canvas navigation uses the keyboard and mouse only. There are no touch gestures.
 
-```sh
+## Configuration
+
+Nyx reads its config file in KDL format. KDL is a simple text format for settings. Nyx looks for a file in this order:
+
+1. The `--config` flag
+2. The `NYX_CONFIG` variable (`NIRI_CONFIG` also works)
+3. Your user config. Nyx creates it from the default on first run.
+4. `/etc/nyx/config.kdl`
+
+The full option list is in [`docs/CONFIG.md`](./docs/CONFIG.md). The file [`resources/default-config.kdl`](./resources/default-config.kdl) has comments for each option.
+
+### Camera options
+
+Put these in the `canvas { ... }` block:
+
+- `min-scale`, `max-scale`: the zoom limits
+- `default-scale`: the zoom at startup
+- `zoom-speed`, `keyboard-zoom-step`: how fast zoom changes
+- `pan-step`: how far one key press moves the camera
+- `overview-scale`: the zoom level of the overview
+- `smooth-camera`: turn spring movement on or off
+- `stiffness`, `damping`, `mass`: settings for the spring
+
+### Tiling options
+
+Put these in `canvas { tiling { ... } }`:
+
+- `gap`: space between windows
+- `master-ratio`: size of the main window
+
+### Effects
+
+- `geometry-corner-radius`: corner size, set in a window rule
+- `active-opacity`, `inactive-opacity`: see-through level of windows
+- `dim-inactive`, `dim-strength`: darken windows that have no focus
+- `border-angle`: spin the border gradient
+- `workspace-slidefade`: from 0 (full slide) to 1 (fade only)
+
+> [!TIP]
+> The `border-angle` spin only moves when Nyx draws frames for other reasons. To force constant drawing, set `allow-constant-repaint`. This uses more power.
+
+### Control a running Nyx
+
+Use the `nyx msg` command. The socket path is in `NYX_SOCKET` (`NIRI_SOCKET` also works). You can call actions such as `set-zoom <scale>` this way.
+
+## Contributing
+
+Bug reports and pull requests are welcome. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) first. That file comes from Niri, so treat it as a general guide.
+
+### Build environment
+
+- Nyx pins Smithay to a fixed git revision in `Cargo.toml`.
+- Nyx does not use wgpu. All drawing uses GLES2 and math on the CPU.
+- Linux only. You need a GPU with GLES2 support.
+
+### Tests
+
+```bash
 cargo test
 ./resources/eyecandy-test.sh --validate-only
 ./resources/camera-zoom-test.sh --validate-only
 ```
 
-`resources/eyecandy-test.sh` opens nested Nyx and spawns 13 `kitty` windows,
-each isolating one effect (rounding, opacity, dim, four blur variants,
-shadow, static gradient, rotating borderangle, open/close animation,
-movement, camera).
-Press `L` inside to close and respawn them all.
-`resources/camera-zoom-test.sh` scatters 6 labeled windows in a ring on the
-free canvas; `L` cycles exact camera zooms (`1.0`, `0.7`, `0.4`, `0.25`,
-`1.5`, `2.5`) through the `set-zoom` action. Both scripts need a Wayland
-session for the nested window and clean up after themselves on `Ctrl+C`.
-`nyx-visual-tests` is a separate GTK/libadwaita app with hardcoded layout
-scenarios for visual inspection (`cargo run -p nyx-visual-tests`).
+The two scripts open a nested Nyx window, so they need a Wayland session. They also need `kitty` or `alacritty`. The scripts use `swww` for the wallpaper. They still run without it.
 
-## Layout of the code
+- `eyecandy-test.sh` opens 13 windows. Each window shows one effect. Press `L` to close and reopen them.
+- `camera-zoom-test.sh` places 6 labeled windows in a ring. Press `L` to cycle through fixed zoom levels.
 
-- `src/canvas/`: camera math (`viewport.rs`), springs (`spring.rs`),
-  tiling (`tiling.rs`).
-- `src/effects/`: pure per-effect math (corners, blur descriptor, borders,
-  shadows, dim, opacity, camera helpers). No GPU calls here.
-- `src/render_helpers/`: Smithay render elements and GLSL (`shaders/`),
-  blur, shadows, borders, offscreen buffers.
-- `src/layout/`: canvas space, tiles, floating layer, focus rings, shadows.
-- `nyx-config/`: KDL parsing (`canvas.rs`, `appearance.rs`,
-  `animations.rs`, `layout.rs`, `window_rule.rs`, `binds.rs`).
-- `nyx-ipc/`: IPC types and the `nyx msg` protocol.
-- `nyx-visual-tests/`: visual test app (not packaged).
+Press `Ctrl+C` to stop a script. It cleans up after itself.
+
+## Project layout
+
+| Path | What it holds |
+|---|---|
+| `src/canvas/` | Camera math, springs, and tiling |
+| `src/effects/` | Math for each effect. No GPU calls. |
+| `src/render_helpers/` | Smithay render code and GLSL shaders |
+| `src/layout/` | Canvas space, tiles, floating layer, focus rings, shadows |
+| `nyx-config/` | KDL config parser |
+| `nyx-ipc/` | Types and protocol for `nyx msg` |
+| `nyx-visual-tests/` | A GTK app to check layouts by eye. It is not packaged. |
+| `resources/` | Default config, test scripts, and session files |
+| `docs/` | Config reference and wiki pages from Niri |
 
 ## License
 
-GPL-3.0-or-later, same as the Niri base.
+GPL-3.0-or-later, the same as Niri.
