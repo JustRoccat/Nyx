@@ -6,6 +6,11 @@ Rendering is Smithay GLES2. The codebase started from Niri: config language,
 backends, window management plumbing and protocol code are inherited from it,
 while the layout (canvas + camera + effects) is Nyx specific.
 
+wanted to say sorry for stealing name of this wm, i wasnt aware at first so yea you could check the first nyxwm:
+https://github.com/nyangkosense/nyxwm
+
+also maybe ill make a better readme later, now i dont want to lol, this one works for now
+
 ## Infinite canvas
 
 Each window owns an absolute rectangle `(x, y, width, height)` in canvas
