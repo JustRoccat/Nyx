@@ -1,0 +1,10 @@
+---
+source: src/tests/window_opening.rs
+description: "config:\nwindow-rule {\n    open-maximized true\n    default-column-width {  }\n}"
+expression: snapshot
+---
+initial configure:
+size: 1280 × 0, bounds: 1280 × 720, states: []
+
+post-map configures:
+size: 1280 × 0, bounds: 1280 × 720, states: [Activated]

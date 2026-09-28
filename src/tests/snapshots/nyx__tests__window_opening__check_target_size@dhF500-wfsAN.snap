@@ -1,0 +1,11 @@
+---
+source: src/tests/window_opening.rs
+description: "want fullscreen: AN\nconfig:\nwindow-rule {\n    default-window-height { fixed 500; }\n}"
+expression: snapshot
+---
+initial configure:
+size: 640 × 500, bounds: 1280 × 720, states: []
+
+post-map configures:
+size: 1280 × 720, bounds: 1280 × 720, states: [Fullscreen]
+size: 0 × 500, bounds: 1280 × 720, states: [Activated]

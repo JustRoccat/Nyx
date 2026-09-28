@@ -1,0 +1,310 @@
+// Nyx eyecandy showcase test config (Hyprland-style effects).
+//
+// Used by resources/eyecandy-test.sh: opens the compositor nested (winit)
+// and spawns 10 terminals, each isolating exactly ONE effect so you can see
+// that every effect works. Do not use as your daily config.
+//
+// Validate: cargo run -q -- validate --config resources/eyecandy-test.kdl
+
+input {
+    keyboard {
+        xkb {}
+        numlock
+    }
+    touchpad {
+        tap
+        natural-scroll
+    }
+    focus-follows-mouse max-scroll-amount="0%"
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+layout {
+    gaps 16
+
+    focus-ring {
+        width 4
+        active-color "#7fc8ff"
+        inactive-color "#505050"
+        active-gradient from="#80c8ff" to="#c7ff7f" angle=45
+    }
+
+    border {
+        off
+        width 3
+        active-color "#ffc87f"
+        inactive-color "#505050"
+        active-gradient from="#e5989b" to="#ffb4a2" angle=45 relative-to="workspace-view" in="oklch longer hue"
+    }
+
+    // Base shadow: window 05/10 crank it up per-rule.
+    shadow {
+        on
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#000a"
+        render-power 3
+        scale 1.0
+    }
+
+    // Base Hyprland-style opacity/dim/rounding (per-window rules override).
+    active-opacity 1.0
+    inactive-opacity 0.9
+    dim-inactive true
+    dim-strength 0.2
+    rounding-power 2.0
+
+    preset-window-widths {
+        proportion 0.5
+    }
+    default-window-width {}
+
+    struts {}
+}
+
+canvas {
+    min-scale 0.1
+    max-scale 3.0
+    zoom-speed 0.12
+    overview-scale 0.4
+    pan-step 200
+    default-scale 1.0
+    keyboard-zoom-step 1.0
+    zoom-to-center true
+    zoom-to-cursor true
+    smooth-camera true
+    overview-restore-zoom true
+    spring {
+        stiffness 900
+        damping 1.0
+        mass 1.0
+    }
+
+    // Dynamic tiling ON from the start (grid): every new window takes a slot
+    // with gaps around it, so the 10 showcase windows open side by side on
+    // the canvas with clear spacing instead of stacking at the center.
+    // Mod+Y toggles back to the free canvas, Mod+Shift+Y cycles layouts.
+    tiling {
+        kind "grid"
+        gap 24
+        master-ratio 0.6
+    }
+}
+
+// Compat eye-candy summary (detailed knobs live in layout/blur/animations).
+effects {
+    corner-radius 12
+    border-width 2
+    shadow-radius 12
+    shadow-opacity 0.5
+    blur-passes 2
+    blur-radius 8
+}
+
+blur {
+    passes 3
+    offset 3.0
+    noise 0.02
+    saturation 1.5
+    vibrancy 0.17
+    contrast 1.0
+    brightness 0.0
+    new-optimizations true
+}
+
+animations {
+    window-open {
+        popin 0.87
+        slide "left"
+        fade true
+    }
+    window-close {
+        popin 0.87
+        fade true
+    }
+    border-angle {
+        loop true
+        angle-speed 0.9
+        allow-constant-repaint true
+    }
+    workspace-slidefade 0.2
+}
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+// Wallpaper for the test (so blur/vibrancy have something colorful to work
+// on instead of flat gray). Runs swww in an ISOLATED runtime dir symlinked
+// to the nested Wayland socket — your outer swww-daemon and wallpaper stay
+// untouched. Best-effort: if swww is missing, the test still runs.
+spawn-sh-at-startup "RT=/tmp/nyx-eyecandy-rt; rm -rf $RT; mkdir -p $RT; ln -s $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY $RT/nested 2>/dev/null; WAYLAND_DISPLAY=nested XDG_RUNTIME_DIR=$RT swww-daemon >/tmp/nyx-eyecandy-swww.log 2>&1 & echo $! > $RT/daemon.pid; sleep 1; WAYLAND_DISPLAY=nested XDG_RUNTIME_DIR=$RT swww img $HOME/Pictures/johnycyberpunk.png >/dev/null 2>&1 || true"
+
+prefer-no-csd
+
+// --- 10 showcase windows, one effect each (titles nyx-fx-01..10) ---
+//
+// All open as canvas tiles (no open-floating): the grid tiling above slots
+// them side by side with 24px gaps, so every effect is visible at once.
+
+// 01: rounded corners + rounding-power (big radius, high power).
+window-rule {
+    match title="^nyx-fx-01-rounding$"
+    geometry-corner-radius 24
+    rounding-power 3.5
+    clip-to-geometry true
+    open-focused true
+}
+
+// 02: active/inactive opacity (inactive 0.55 — focus another window to see).
+window-rule {
+    match title="^nyx-fx-02-opacity$"
+    opacity 1.0
+    inactive-opacity 0.55
+}
+
+// 03: dim inactive (strong 0.5).
+window-rule {
+    match title="^nyx-fx-03-dim$"
+    dim-inactive true
+    dim-strength 0.5
+}
+
+// 04: blur behind translucent window (opacity 0.85 + always-blur).
+window-rule {
+    match title="^nyx-fx-04-blur$"
+    opacity 0.85
+    background-effect {
+        blur true
+        noise 0.03
+        saturation 1.4
+        vibrancy 0.2
+    }
+}
+
+// 05: big Hyprland shadow (soft, high render-power + scale + offset).
+window-rule {
+    match title="^nyx-fx-05-shadow$"
+    shadow {
+        on
+        softness 60
+        spread 10
+        offset x=0 y=12
+        color "#000c"
+        render-power 4
+        scale 1.5
+    }
+}
+
+// 06: static gradient border (linear, workspace-relative).
+window-rule {
+    match title="^nyx-fx-06-gradient$"
+    border {
+        on
+        width 4
+        active-gradient from="#80c8ff" to="#c7ff7f" angle=45 relative-to="workspace-view"
+        inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
+    }
+}
+
+// 07: animated borderangle loop (rotating gradient).
+window-rule {
+    match title="^nyx-fx-07-borderangle$"
+    border {
+        on
+        width 4
+        active-gradient from="#e5989b" to="#ffb4a2" angle=45 relative-to="workspace-view" in="oklch longer hue"
+    }
+}
+
+// 08: open/close popin + slide (this window pops 70% and slides from left).
+window-rule {
+    match title="^nyx-fx-08-popin$"
+    opacity 1.0
+}
+
+// 09: movement spring (Mod+Ctrl+arrows swaps me with neighbours — bouncy).
+window-rule {
+    match title="^nyx-fx-09-move$"
+}
+
+// 10: camera slidefade + focus fade (pan with Mod+HJKL / zoom Mod+wheel).
+window-rule {
+    match title="^nyx-fx-10-camera$"
+    shadow {
+        on
+        softness 30
+        color "#000a"
+    }
+    open-focused true
+}
+
+// 11: blur with strong vibrancy (colors bleed through the blur).
+window-rule {
+    match title="^nyx-fx-11-blur-vibrancy$"
+    opacity 0.8
+    background-effect {
+        blur true
+        saturation 1.2
+        vibrancy 0.7
+    }
+}
+
+// 12: blur with heavy film grain.
+window-rule {
+    match title="^nyx-fx-12-blur-noise$"
+    opacity 0.9
+    background-effect {
+        blur true
+        noise 0.3
+        saturation 1.0
+    }
+}
+
+// 13: blur with punchy color grade (contrast + brightness + saturation).
+window-rule {
+    match title="^nyx-fx-13-blur-grade$"
+    opacity 0.85
+    background-effect {
+        blur true
+        saturation 2.0
+        contrast 1.6
+        brightness 0.12
+    }
+}
+
+binds {
+    Mod+T { spawn "kitty"; }
+    Mod+Q repeat=false { close-window; }
+    Mod+Shift+E { quit; }
+    // Replay the showcase: close all nyx-fx-* windows and spawn them again.
+    // (Test config only — plain key, demo terminals are print-only.)
+    // Must run the test script from the repo root (it cds there itself).
+    L { spawn-sh "resources/eyecandy-respawn.sh"; }
+    Mod+H { pan-left; }
+    Mod+J { pan-down; }
+    Mod+K { pan-up; }
+    Mod+L { pan-right; }
+    Mod+Equal { zoom-in; }
+    Mod+Minus { zoom-out; }
+    Mod+0 { reset-zoom; }
+    Mod+Tab { toggle-canvas-overview; }
+    Mod+Home { home-canvas; }
+    Mod+Left { focus-window-left; }
+    Mod+Right { focus-window-right; }
+    Mod+Up { focus-window-up; }
+    Mod+Down { focus-window-down; }
+    Mod+Ctrl+Left { move-window-left; }
+    Mod+Ctrl+Right { move-window-right; }
+    Mod+Ctrl+Up { move-window-up; }
+    Mod+Ctrl+Down { move-window-down; }
+    Mod+Y { toggle-dynamic-tiling; }
+    Mod+Shift+Y { cycle-tiling-layout; }
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+}

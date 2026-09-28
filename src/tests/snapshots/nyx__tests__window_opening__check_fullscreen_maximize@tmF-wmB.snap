@@ -1,0 +1,11 @@
+---
+source: src/tests/window_opening.rs
+assertion_line: 889
+description: "want maximized: B\nconfig:\nwindow-rule {\n    open-maximized-to-edges false\n}"
+expression: snapshot
+---
+initial configure:
+size: 0 × 0, bounds: 1280 × 720, states: []
+
+post-map configures:
+size: 0 × 0, bounds: 1280 × 720, states: [Activated]

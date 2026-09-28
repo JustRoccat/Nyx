@@ -1,0 +1,15 @@
+---
+source: src/tests/window_opening.rs
+assertion_line: 889
+description: "want fullscreen: AN\nwant maximized: BU\nconfig:\nwindow-rule {\n    open-fullscreen true\n}"
+expression: snapshot
+---
+initial configure:
+size: 1280 × 720, bounds: 1280 × 720, states: [Fullscreen]
+
+post-map configures:
+size: 1280 × 720, bounds: 1280 × 720, states: [Fullscreen]
+size: 1280 × 720, bounds: 1280 × 720, states: [Fullscreen, Activated]
+
+unfullscreen configure:
+size: 1 × 1, bounds: 1280 × 720, states: [Activated]

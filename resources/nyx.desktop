@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Nyx
+Comment=Nyx — a 2D infinite-canvas Wayland compositor
+Exec=nyx-session
+Type=Application
+DesktopNames=nyx

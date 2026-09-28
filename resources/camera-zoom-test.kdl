@@ -1,0 +1,222 @@
+// Nyx camera-zoom showcase test config.
+//
+// Separate from eyecandy-test.kdl: FREE canvas (no tiling — zoom/pan lock
+// while tiling is on), 6 labeled windows scattered in a ring, and the `L`
+// key cycling exact camera zooms via the `set-zoom` action.
+//
+// Run: ./resources/camera-zoom-test.sh
+// Validate: cargo run -q -- validate --config resources/camera-zoom-test.kdl
+
+input {
+    keyboard {
+        xkb {}
+        numlock
+    }
+    touchpad {
+        tap
+        natural-scroll
+    }
+    focus-follows-mouse max-scroll-amount="0%"
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+layout {
+    gaps 16
+
+    focus-ring {
+        width 4
+        active-color "#7fc8ff"
+        inactive-color "#505050"
+    }
+
+    border {
+        off
+        width 3
+        active-color "#ffc87f"
+        inactive-color "#505050"
+    }
+
+    shadow {
+        on
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#000a"
+        render-power 3
+        scale 1.0
+    }
+
+    // Clean 1:1 colors for the zoom demo (no dim games here).
+    active-opacity 1.0
+    inactive-opacity 1.0
+    dim-inactive false
+    dim-strength 0.2
+    rounding-power 2.0
+
+    preset-window-widths {
+        proportion 0.5
+    }
+    default-window-width {}
+
+    struts {}
+}
+
+canvas {
+    min-scale 0.1
+    max-scale 3.0
+    zoom-speed 0.12
+    overview-scale 0.4
+    // Big steps so the spawn script can scatter windows in a wide ring.
+    pan-step 900
+    default-scale 1.0
+    keyboard-zoom-step 1.0
+    zoom-to-center true
+    zoom-to-cursor true
+    // Animated glide between zoom presets (the whole point of the demo).
+    smooth-camera true
+    overview-restore-zoom true
+    spring {
+        stiffness 900
+        damping 1.0
+        mass 1.0
+    }
+    // No tiling: navigation locks while tiling is on.
+}
+
+// Compat eye-candy summary.
+effects {
+    corner-radius 12
+    border-width 2
+    shadow-radius 12
+    shadow-opacity 0.5
+    blur-passes 2
+    blur-radius 8
+}
+
+blur {
+    passes 3
+    offset 3.0
+    noise 0.02
+    saturation 1.5
+    vibrancy 0.0
+    contrast 1.0
+    brightness 0.0
+    new-optimizations true
+}
+
+animations {
+    window-open {
+        popin 0.87
+        fade true
+    }
+    window-close {
+        popin 0.87
+        fade true
+    }
+}
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+prefer-no-csd
+
+// Wallpaper for orientation when zoomed out (isolated swww, outer untouched).
+spawn-sh-at-startup "RT=/tmp/nyx-zoom-test-rt; rm -rf $RT; mkdir -p $RT; ln -s $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY $RT/nested 2>/dev/null; WAYLAND_DISPLAY=nested XDG_RUNTIME_DIR=$RT swww-daemon >/tmp/nyx-zoom-test-swww.log 2>&1 & echo $! > $RT/daemon.pid; sleep 1; WAYLAND_DISPLAY=nested XDG_RUNTIME_DIR=$RT swww img $HOME/Pictures/johnycyberpunk.png >/dev/null 2>&1 || true"
+
+// --- 6 zoom markers in a ring around the origin (titles nyx-zoom-01..06) ---
+// Distinct border colors so you can tell them apart when zoomed out.
+
+window-rule {
+    match title="^nyx-zoom-01-center$"
+    geometry-corner-radius 12
+    clip-to-geometry true
+    border {
+        on
+        width 4
+        active-color "#ff5555"
+    }
+}
+
+window-rule {
+    match title="^nyx-zoom-02-east$"
+    geometry-corner-radius 12
+    clip-to-geometry true
+    border {
+        on
+        width 4
+        active-color "#55ff55"
+    }
+}
+
+window-rule {
+    match title="^nyx-zoom-03-southeast$"
+    geometry-corner-radius 12
+    clip-to-geometry true
+    border {
+        on
+        width 4
+        active-color "#5555ff"
+    }
+}
+
+window-rule {
+    match title="^nyx-zoom-04-southwest$"
+    geometry-corner-radius 12
+    clip-to-geometry true
+    border {
+        on
+        width 4
+        active-color "#ffff55"
+    }
+}
+
+window-rule {
+    match title="^nyx-zoom-05-northwest$"
+    geometry-corner-radius 12
+    clip-to-geometry true
+    border {
+        on
+        width 4
+        active-color "#ff55ff"
+    }
+}
+
+window-rule {
+    match title="^nyx-zoom-06-north$"
+    geometry-corner-radius 12
+    clip-to-geometry true
+    border {
+        on
+        width 4
+        active-color "#55ffff"
+    }
+}
+
+binds {
+    Mod+T { spawn "kitty"; }
+    Mod+Q repeat=false { close-window; }
+    Mod+Shift+E { quit; }
+    // Cycle exact camera zooms: 1.0 -> 0.7 -> 0.4 -> 0.25 -> 1.5 -> 2.5 -> …
+    // (Test config only — plain key, demo terminals are print-only.)
+    L { spawn-sh "resources/camera-zoom-cycle.sh"; }
+    Mod+H { pan-left; }
+    Mod+J { pan-down; }
+    Mod+K { pan-up; }
+    Mod+L { pan-right; }
+    Mod+Equal { zoom-in; }
+    Mod+Minus { zoom-out; }
+    Mod+0 { reset-zoom; }
+    Mod+Tab { toggle-canvas-overview; }
+    Mod+Home { home-canvas; }
+    Mod+Left { focus-window-left; }
+    Mod+Right { focus-window-right; }
+    Mod+Up { focus-window-up; }
+    Mod+Down { focus-window-down; }
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+}

@@ -1,0 +1,14 @@
+---
+source: src/tests/window_opening.rs
+assertion_line: 889
+description: "want fullscreen: BU\nwant maximized: B\nconfig:\nwindow-rule {\n    open-maximized-to-edges true\n}"
+expression: snapshot
+---
+initial configure:
+size: 1280 × 720, bounds: 1280 × 720, states: [Maximized]
+
+post-map configures:
+size: 1280 × 720, bounds: 1280 × 720, states: [Maximized, Activated]
+
+unmaximize configure:
+size: 1 × 1, bounds: 1280 × 720, states: [Activated]

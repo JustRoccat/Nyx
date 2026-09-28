@@ -1,0 +1,427 @@
+### Overview
+
+In the `layout {}` section you can change various settings that influence how windows are positioned and sized.
+
+Here are the contents of this section at a glance:
+
+```kdl
+layout {
+    gaps 16
+    empty-workspace-above-first
+    background-color "#003300"
+
+    preset-window-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+
+    default-window-width { proportion 0.5; }
+
+    preset-window-heights {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+
+    focus-ring {
+        // off
+        on
+        width 4
+        active-color "#7fc8ff"
+        inactive-color "#505050"
+        urgent-color "#9b0000"
+        // active-gradient from="#80c8ff" to="#bbddff" angle=45
+        // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
+        // urgent-gradient from="#800" to="#a33" angle=45
+    }
+
+    border {
+        off
+        // on
+        width 4
+        active-color "#ffc87f"
+        inactive-color "#505050"
+        urgent-color "#9b0000"
+        // active-gradient from="#ffbb66" to="#ffc880" angle=45 relative-to="workspace-view"
+        // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view" in="srgb-linear"
+        // urgent-gradient from="#800" to="#a33" angle=45
+    }
+
+    shadow {
+        off
+        // on
+        softness 30
+        spread 5
+        offset x=0 y=5
+        draw-behind-window true
+        color "#00000070"
+        // inactive-color "#00000054"
+    }
+
+    struts {
+        // left 64
+        // right 64
+        // top 64
+        // bottom 64
+    }
+}
+```
+
+<sup>Since: 25.11</sup> You can override these settings for specific [outputs](./Configuration:-Outputs.md#layout-config-overrides) and [named workspaces](./Configuration:-Named-Workspaces.md#layout-config-overrides).
+
+### `gaps`
+
+Set gaps around (inside and outside) windows in logical pixels.
+
+<sup>Since: 0.1.7</sup> You can use fractional values.
+The value will be rounded to physical pixels according to the scale factor of every output.
+For example, `gaps 0.5` on an output with `scale 2` will result in one physical-pixel wide gaps.
+
+<sup>Since: 0.1.8</sup> You can emulate "inner" vs. "outer" gaps with negative `struts` values (see the struts section below).
+
+```kdl
+layout {
+    gaps 16
+}
+```
+
+### `empty-workspace-above-first`
+
+<sup>Since: 25.01</sup>
+
+If set, niri will always add an empty workspace at the very start, in addition to the empty workspace at the very end.
+
+```kdl
+layout {
+    empty-workspace-above-first
+}
+```
+
+### Removed keys
+
+Nyx lays windows out on a free 2D canvas instead of columns, so the
+`center-focused-column`, `always-center-single-column`,
+`default-column-display`, `tab-indicator` and `insert-hint` keys no
+longer exist. Configs containing them will fail to parse; remove those lines
+when migrating from Niri.
+
+
+### `preset-window-widths`
+
+> Old configs using `preset-column-widths` still parse, but please rename the key.
+
+Set the widths that the `switch-preset-window-width` action (Mod+R) toggles between.
+<sup>Since: 25.08</sup> You can use the `switch-preset-window-width-back` action (Mod+Shift+R) to toggle in reverse.
+
+`proportion` sets the width as a fraction of the output width, taking gaps into account.
+For example, you can perfectly fit four windows sized `proportion 0.25` on an output, regardless of the gaps setting.
+The default preset widths are <sup>1</sup>&frasl;<sub>3</sub>, <sup>1</sup>&frasl;<sub>2</sub> and <sup>2</sup>&frasl;<sub>3</sub> of the output.
+
+`fixed` sets the window width in logical pixels exactly.
+
+```kdl
+layout {
+    // Cycle between 1/3, 1/2, 2/3 of the output, and a fixed 1280 logical pixels.
+    preset-window-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        fixed 1280
+    }
+}
+```
+
+### `default-window-width`
+
+> Old configs using `default-column-width` still parse, but please rename the key.
+
+Set the default width of the new windows.
+
+The syntax is the same as in `preset-window-widths` above.
+
+```kdl
+layout {
+    // Open new windows sized 1/3 of the output.
+    default-window-width { proportion 0.33333; }
+}
+```
+
+You can also leave the brackets empty, then the windows themselves will decide their initial width.
+
+```kdl
+layout {
+    // New windows decide their initial width themselves.
+    default-window-width {}
+}
+```
+
+> [!NOTE]
+> `default-window-width {}` causes nyx to send a (0, H) size in the initial configure request.
+>
+> This is a bit [unclearly defined](https://gitlab.freedesktop.org/wayland/wayland-protocols/-/issues/155) in the Wayland protocol, so some clients may misinterpret it.
+> Either way, `default-window-width {}` is most useful for specific windows, in form of a [window rule](./Configuration:-Window-Rules.md#default-window-width) with the same syntax.
+
+### `preset-window-heights`
+
+<sup>Since: 0.1.9</sup>
+
+Set the heights that the `switch-preset-window-height` action (Mod+Ctrl+Shift+R) toggles between.
+<sup>Since: 25.08</sup> You can use the `switch-preset-window-height-back` action (not bound by default) to toggle in reverse.
+
+`proportion` sets the height as a fraction of the output height, taking gaps into account.
+The default preset heights are <sup>1</sup>&frasl;<sub>3</sub>, <sup>1</sup>&frasl;<sub>2</sub> and <sup>2</sup>&frasl;<sub>3</sub> of the output.
+
+`fixed` sets the height in logical pixels exactly.
+
+```kdl
+layout {
+    // Cycle between 1/3, 1/2, 2/3 of the output, and a fixed 720 logical pixels.
+    preset-window-heights {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        fixed 720
+    }
+}
+```
+
+### `focus-ring` and `border`
+
+Focus ring and border are drawn around windows and indicate the active window.
+They are very similar and have the same options.
+
+The difference is that the focus ring is drawn only around the active window, whereas borders are drawn around all windows and affect their sizes (windows shrink to make space for the borders).
+
+| Focus Ring                | Border                |
+| ------------------------- | --------------------- |
+| ![Screenshot showing a focused image in the center row using focus ring](./img/focus-ring.png) | ![Screenshot showing a focused image in the center row using border, while top and bottom windows have the inactive color](./img/border.png) |
+
+> [!TIP]
+> By default, focus ring and border are rendered as a solid background rectangle behind windows.
+> That is, they will show up through semitransparent windows.
+> This is because windows using client-side decorations can have an arbitrary shape.
+>
+> If you don't like that, you should uncomment the [`prefer-no-csd` setting](./Configuration:-Miscellaneous.md#prefer-no-csd) at the top level of the config.
+> Niri will draw focus rings and borders *around* windows that agree to omit their client-side decorations.
+>
+> Alternatively, you can override this behavior with the [`draw-border-with-background` window rule](./Configuration:-Window-Rules.md#draw-border-with-background).
+
+Focus ring and border have the following options.
+
+```kdl
+layout {
+    // focus-ring has the same options.
+    border {
+        // Uncomment this line to disable the border.
+        // off
+
+        // Width of the border in logical pixels.
+        width 4
+
+        active-color "#ffc87f"
+        inactive-color "#505050"
+
+        // Color of the border around windows that request your attention.
+        urgent-color "#9b0000"
+
+        // active-gradient from="#ffbb66" to="#ffc880" angle=45 relative-to="workspace-view"
+        // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view" in="srgb-linear"
+    }
+}
+```
+
+#### Width
+
+Set the thickness of the border in logical pixels.
+
+<sup>Since: 0.1.7</sup> You can use fractional values.
+The value will be rounded to physical pixels according to the scale factor of every output.
+For example, `width 0.5` on an output with `scale 2` will result in one physical-pixel thick borders.
+
+```kdl
+layout {
+    border {
+        width 2
+    }
+}
+```
+
+#### Colors
+
+Colors can be set in a variety of ways:
+
+- CSS named colors: `"red"`
+- RGB hex: `"#rgb"`, `"#rgba"`, `"#rrggbb"`, `"#rrggbbaa"`
+- CSS-like notation: `"rgb(255, 127, 0)"`, `"rgba()"`, `"hsl()"` and a few others.
+
+`active-color` is the color of the focus ring / border around the active window, and `inactive-color` is the color of the focus ring / border around all other windows.
+
+The *focus ring* is only drawn around the active window on each monitor, so with a single monitor you will never see its `inactive-color`.
+You will see it if you have multiple monitors, though.
+
+There's also a *deprecated* syntax for setting colors with four numbers representing R, G, B and A: `active-color 127 200 255 255`.
+
+#### Gradients
+
+Similarly to colors, you can set `active-gradient` and `inactive-gradient`, which will take precedence.
+
+Gradients are rendered the same as CSS [`linear-gradient(angle, from, to)`](https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient).
+The angle works the same as in `linear-gradient`, and is optional, defaulting to `180` (top-to-bottom gradient).
+You can use any CSS linear-gradient tool on the web to set these up, like [css-gradient.com](https://www.css-gradient.com/).
+
+```kdl
+layout {
+    focus-ring {
+        active-gradient from="#80c8ff" to="#bbddff" angle=45
+    }
+}
+```
+
+Gradients can be colored relative to windows individually (the default), or to the whole view of the workspace.
+To do that, set `relative-to="workspace-view"`.
+Here's a visual example:
+
+| Default                          | `relative-to="workspace-view"`                      |
+| -------------------------------- | --------------------------------------------------- |
+| ![Screenshot displaying 4 windows, each with individual gradient borders](./img/gradients-default.png) | ![Screenshot displaying 4 windows, with a shared gradient across their borders](./img/gradients-relative-to-workspace-view.png) |
+
+```kdl
+layout {
+    border {
+        active-gradient from="#ffbb66" to="#ffc880" angle=45 relative-to="workspace-view"
+        inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
+    }
+}
+```
+
+<sup>Since: 0.1.8</sup> You can set the gradient interpolation color space using syntax like `in="srgb-linear"` or `in="oklch longer hue"`.
+Supported color spaces are:
+
+- `srgb` (the default),
+- `srgb-linear`,
+- `oklab`,
+- `oklch` with `shorter hue` or `longer hue` or `increasing hue` or `decreasing hue`.
+
+They are rendered the same as CSS.
+For example, `active-gradient from="#f00f" to="#0f05" angle=45 in="oklch longer hue"` will look the same as CSS `linear-gradient(45deg in oklch longer hue, #f00f, #0f05)`.
+
+![Screenshot showing a window with a border using a gradient in the oklch color space](./img/gradients-oklch.png)
+
+```kdl
+layout {
+    border {
+        active-gradient from="#f00f" to="#0f05" angle=45 in="oklch longer hue"
+    }
+}
+```
+
+### `shadow`
+
+<sup>Since: 25.02</sup>
+
+Shadow rendered behind a window.
+
+Set `on` to enable the shadow.
+
+`softness` controls the shadow softness/size in logical pixels, same as [CSS box-shadow] *blur radius*.
+Setting `softness 0` will give you hard shadows.
+
+`spread` is the distance to expand the window rectangle in logical pixels, same as CSS box-shadow spread.
+<sup>Since: 25.05</sup> Spread can be negative.
+
+`offset` moves the shadow relative to the window in logical pixels, same as CSS box-shadow offset.
+For example, `offset x=2 y=2` will move the shadow 2 logical pixels downwards and to the right.
+
+Set `draw-behind-window` to `true` to make shadows draw behind the window rather than just around it.
+Note that niri has no way of knowing about the CSD window corner radius.
+It has to assume that windows have square corners, leading to shadow artifacts inside the CSD rounded corners.
+This setting fixes those artifacts.
+
+However, instead you may want to set `prefer-no-csd` and/or `geometry-corner-radius`.
+Then, niri will know the corner radius and draw the shadow correctly, without having to draw it behind the window.
+These will also remove client-side shadows if the window draws any.
+
+`color` is the shadow color and opacity.
+
+`inactive-color` lets you override the shadow color for inactive windows; by default, a more transparent `color` is used.
+
+Shadow drawing will follow the window corner radius set with the [`geometry-corner-radius` window rule](./Configuration:-Window-Rules.md#geometry-corner-radius).
+
+> [!NOTE]
+> Currently, shadow drawing only supports matching radius for all corners. If you set `geometry-corner-radius` to four values instead of one, the first (top-left) corner radius will be used for shadows.
+
+```kdl
+// Enable shadows.
+layout {
+    shadow {
+        on
+    }
+}
+
+// Also ask windows to omit client-side decorations, so that
+// they don't draw their own window shadows.
+prefer-no-csd
+```
+
+[CSS box-shadow]: https://developer.mozilla.org/en-US/docs/Web/CSS/box-shadow
+
+### `struts`
+
+Struts shrink the area occupied by windows, similarly to layer-shell panels.
+You can think of them as a kind of outer gaps.
+They are set in logical pixels.
+
+Left and right struts will cause the next window to the side to always peek out slightly.
+Top and bottom struts will simply add outer gaps in addition to the area occupied by layer-shell panels and regular gaps.
+
+<sup>Since: 0.1.7</sup> You can use fractional values.
+The value will be rounded to physical pixels according to the scale factor of every output.
+For example, `top 0.5` on an output with `scale 2` will result in one physical-pixel wide top strut.
+
+```kdl
+layout {
+    struts {
+        left 64
+        right 64
+        top 64
+        bottom 64
+    }
+}
+```
+
+![A screenshot illustrating the effects of struts, as explained in the second paragraph in this section](./img/struts.png)
+
+<sup>Since: 0.1.8</sup> You can use negative values.
+They will push the windows outwards, even outside the edges of the screen.
+
+You can use negative struts with matching gaps value to emulate "inner" vs. "outer" gaps.
+For example, use this for inner gaps without outer gaps:
+
+```kdl
+layout {
+    gaps 16
+
+    struts {
+        left -16
+        right -16
+        top -16
+        bottom -16
+    }
+}
+```
+
+### `background-color`
+
+<sup>Since: 25.05</sup>
+
+Set the default background color that niri draws for workspaces.
+This is visible when you're not using any background tools like swaybg.
+
+```kdl
+layout {
+    background-color "#003300"
+}
+```
+
+You can also set the color per-output [in the output config](./Configuration:-Outputs.md#layout-config-overrides).

@@ -1,0 +1,11 @@
+---
+source: src/tests/window_opening.rs
+description: "want fullscreen: AU\nconfig:\nwindow-rule {\n    default-window-height { proportion 0.5; }\n}"
+expression: snapshot
+---
+initial configure:
+size: 640 × 360, bounds: 1280 × 720, states: []
+
+post-map configures:
+size: 640 × 360, bounds: 1280 × 720, states: []
+size: 640 × 360, bounds: 1280 × 720, states: [Activated]
