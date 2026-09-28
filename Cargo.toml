@@ -7,11 +7,11 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
-description = "Nyx (NyxWM) — a 2D infinite-canvas Wayland compositor"
+description = "Nyx (NyxWM) a 2D infinite-canvas Wayland compositor"
 authors = ["Nyx Contributors"]
 license = "GPL-3.0-or-later"
 edition = "2021"
-repository = "https://example.invalid/nyx/nyx"
+repository = "https://github.com/JustRoccat/Nyx"
 rust-version = "1.87"
 
 [workspace.dependencies]
