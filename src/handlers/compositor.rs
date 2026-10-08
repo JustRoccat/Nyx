@@ -3,6 +3,7 @@ use std::collections::hash_map::Entry;
 use nyx_ipc::PositionChange;
 use smithay::backend::renderer::utils::on_commit_buffer_handler;
 use smithay::input::pointer::{CursorImageStatus, CursorImageSurfaceData};
+use smithay::output::Output;
 use smithay::reexports::calloop::Interest;
 use smithay::reexports::wayland_server::protocol::wl_buffer;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
@@ -16,7 +17,7 @@ use smithay::wayland::compositor::{
 use smithay::wayland::dmabuf::get_dmabuf;
 use smithay::wayland::shell::xdg::ToplevelCachedState;
 use smithay::wayland::shm::{ShmHandler, ShmState};
-
+use smithay::utils::{Logical, Point, Size};
 use super::xdg_shell::add_mapped_toplevel_pre_commit_hook;
 use crate::handlers::XDG_ACTIVATION_TOKEN_TIMEOUT;
 use crate::layout::{ActivateWindow, AddWindowTarget, LayoutElement as _};
@@ -24,6 +25,14 @@ use crate::nyx::{CastTarget, ClientState, LockState, State};
 use crate::utils::transaction::Transaction;
 use crate::utils::{is_mapped, send_scale_transform};
 use crate::window::{InitialConfigureState, Mapped, ResolvedWindowRules, Unmapped};
+
+/// Drag-spawn placement resolved at map time: target output, canvas position
+/// and canvas size.
+type DragTarget = (
+    Output,
+    Point<f64, Logical>,
+    Size<f64, Logical>,
+);
 
 impl CompositorHandler for State {
     fn compositor_state(&mut self) -> &mut CompositorState {
@@ -200,9 +209,42 @@ impl CompositorHandler for State {
                     };
                     let window = mapped.window.clone();
 
+                    if matches!(&self.niri.drag_spawn_pending, Some(p) if !p.is_fresh()) {
+                        self.niri.drag_spawn_pending = None;
+                    }
+
+                    let drag_target: Option<DragTarget> = if parent.is_none() {
+                        match &self.niri.drag_spawn_pending {
+                            Some(pending) if !self.niri.layout.nyx_is_tiling() => self
+                                .niri
+                                .layout
+                                .monitor_for_output(&pending.output)
+                                .map(|mon| {
+                                    let ws = mon.active_workspace_ref();
+                                    let top_left = ws.to_canvas_pos(pending.rect.loc);
+                                    let bottom_right = ws
+                                        .to_canvas_pos(pending.rect.loc + pending.rect.size);
+                                    (
+                                        pending.output.clone(),
+                                        top_left,
+                                        Size::from((
+                                            (bottom_right.x - top_left.x).max(1.),
+                                            (bottom_right.y - top_left.y).max(1.),
+                                        )),
+                                    )
+                                }),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
                     let target = if let Some(p) = &parent {
                         // Open dialogs next to their parent window.
                         AddWindowTarget::NextTo(p)
+                    } else if let Some((drag_output, drag_pos, _)) = &drag_target {
+                        self.niri.drag_spawn_pending = None;
+                        AddWindowTarget::OutputAtPosition(drag_output, *drag_pos)
                     } else if let Some(id) = workspace_id {
                         AddWindowTarget::Workspace(id)
                     } else if let Some(output) = &output {
@@ -210,6 +252,9 @@ impl CompositorHandler for State {
                     } else {
                         AddWindowTarget::Auto
                     };
+                    // A drag-spawned window must stay exactly where drawn: no
+                    // camera flight, focus without centering instead.
+                    let drag_used = drag_target.is_some();
                     let output = self.niri.layout.add_window(
                         mapped,
                         target,
@@ -217,14 +262,24 @@ impl CompositorHandler for State {
                         height,
                         is_full_width,
                         is_floating,
-                        activate,
+                        if drag_used {
+                            ActivateWindow::No
+                        } else {
+                            activate
+                        },
                     );
                     let output = output.cloned();
 
-                    // The window state cannot contain Fullscreen and Maximized at once. Therefore,
-                    // if the window ended up fullscreen, then we only know that it is also
-                    // maximized from the is_pending_maximized variable. Tell the layout about it
-                    // here so that unfullscreening the window makes it maximized.
+                    if let Some((_, _, drag_size)) = drag_target {
+                        if self.niri.layout.find_window_and_output(surface).is_some() {
+                            self.niri.layout.set_window_size(
+                                Some(&window),
+                                drag_size.w.round() as i32,
+                                drag_size.h.round() as i32,
+                            );
+                        }
+                        self.niri.layout.activate_window_without_raising(&window);
+                    }
                     if let Some((mapped, _)) = self.niri.layout.find_window_and_output(surface) {
                         if mapped.pending_sizing_mode().is_fullscreen() && is_pending_maximized {
                             self.niri.layout.set_maximized(&window, true);

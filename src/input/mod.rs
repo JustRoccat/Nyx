@@ -40,6 +40,7 @@ use smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitor;
 use smithay::wayland::pointer_constraints::{with_pointer_constraint, PointerConstraint};
 use touch_overview_grab::TouchOverviewGrab;
 
+use self::drag_spawn::DragSpawnGrab;
 use self::move_grab::MoveGrab;
 use self::pick_color_grab::PickColorGrab;
 use self::pick_window_grab::PickWindowGrab;
@@ -56,6 +57,7 @@ use crate::utils::{center, get_monotonic_time, CastSessionId, ResizeEdge};
 
 pub mod backend_ext;
 pub mod click_grab;
+pub mod drag_spawn;
 pub mod move_grab;
 pub mod pick_color_grab;
 pub mod pick_window_grab;
@@ -751,6 +753,10 @@ impl State {
             Action::SpawnSh(command) => {
                 let (token, _) = self.niri.activation_state.create_external_token(None);
                 spawn_sh(command, Some(token.clone()));
+            }
+            Action::SpawnAtDrag(command) => {
+                self.open_drag_spawn(command);
+                self.niri.cancel_mru();
             }
             Action::DoScreenTransition(delay_ms) => {
                 self.backend.with_primary_renderer(|renderer| {
@@ -4173,7 +4179,10 @@ impl State {
     fn grab_can_be_cancelled_with_esc(grab: &(dyn PointerGrab<State> + 'static)) -> bool {
         let grab = grab.as_any();
 
-        grab.is::<PickWindowGrab>() || grab.is::<PickColorGrab>() || Self::is_dnd_grab(grab)
+        grab.is::<PickWindowGrab>()
+            || grab.is::<PickColorGrab>()
+            || grab.is::<DragSpawnGrab>()
+            || Self::is_dnd_grab(grab)
     }
 }
 

@@ -112,6 +112,7 @@ pub enum Action {
     DebugToggleDamage,
     Spawn(#[knuffel(arguments)] Vec<String>),
     SpawnSh(#[knuffel(argument)] String),
+    SpawnAtDrag(#[knuffel(arguments)] Vec<String>),
     DoScreenTransition(#[knuffel(property(name = "delay-ms"))] Option<u16>),
     #[knuffel(skip)]
     ConfirmScreenshot {
@@ -370,6 +371,7 @@ impl From<nyx_ipc::Action> for Action {
             nyx_ipc::Action::PowerOnMonitors {} => Self::PowerOnMonitors,
             nyx_ipc::Action::Spawn { command } => Self::Spawn(command),
             nyx_ipc::Action::SpawnSh { command } => Self::SpawnSh(command),
+            nyx_ipc::Action::SpawnAtDrag { command } => Self::SpawnAtDrag(command),
             nyx_ipc::Action::DoScreenTransition { delay_ms } => Self::DoScreenTransition(delay_ms),
             nyx_ipc::Action::Screenshot { show_pointer, path } => {
                 Self::Screenshot(show_pointer, path)

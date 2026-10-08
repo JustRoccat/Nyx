@@ -214,6 +214,12 @@ pub enum Action {
         #[cfg_attr(feature = "clap", arg(last = true, required = true))]
         command: String,
     },
+    /// Drag a rectangle on the canvas, then spawn a command there.
+    SpawnAtDrag {
+        /// Command to spawn.
+        #[cfg_attr(feature = "clap", arg(last = true, required = true))]
+        command: Vec<String>,
+    },
     /// Do a screen transition.
     DoScreenTransition {
         /// Delay in milliseconds for the screen to freeze before starting the transition.

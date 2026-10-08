@@ -420,6 +420,8 @@ pub struct Niri {
 
     pub pick_window: Option<async_channel::Sender<Option<MappedId>>>,
     pub pick_color: Option<async_channel::Sender<Option<nyx_ipc::PickedColor>>>,
+    pub drag_spawn_rect: Option<(Output, Rectangle<f64, Logical>)>,
+    pub drag_spawn_pending: Option<crate::input::drag_spawn::DragSpawnPending>,
 
     pub debug_draw_opaque_regions: bool,
     pub debug_draw_damage: bool,
@@ -2170,6 +2172,41 @@ impl State {
         self.niri.queue_redraw_all();
     }
 
+    pub fn open_drag_spawn(&mut self, command: Vec<String>) {
+        if command.is_empty() {
+            return;
+        }
+        if self.niri.is_locked() || self.niri.screenshot_ui.is_open() {
+            return;
+        }
+        if self.niri.layout.nyx_is_tiling() {
+            return;
+        }
+
+        let pointer = self.niri.seat.get_pointer().unwrap();
+        if pointer.is_grabbed() {
+            return;
+        }
+
+        let location = pointer.current_location();
+        let Some((output, _)) = self.niri.output_under(location) else {
+            return;
+        };
+        let output = output.clone();
+
+        let start_data = PointerGrabStartData {
+            focus: None,
+            button: 0,
+            location,
+        };
+        let grab = crate::input::drag_spawn::DragSpawnGrab::new(start_data, command, output);
+        pointer.set_grab(self, grab, SERIAL_COUNTER.next_serial(), Focus::Clear);
+        self.niri
+            .cursor_manager
+            .set_cursor_image(CursorImageStatus::Named(CursorIcon::Crosshair));
+        self.niri.queue_redraw_all();
+    }
+
     pub fn handle_pick_color(&mut self, tx: async_channel::Sender<Option<nyx_ipc::PickedColor>>) {
         let pointer = self.niri.seat.get_pointer().unwrap();
         let start_data = PointerGrabStartData {
@@ -2794,6 +2831,8 @@ impl Niri {
 
             pick_window: None,
             pick_color: None,
+            drag_spawn_rect: None,
+            drag_spawn_pending: None,
 
             debug_draw_opaque_regions: false,
             debug_draw_damage: false,
@@ -4505,6 +4544,49 @@ impl Niri {
             push(backdrop);
 
             return;
+        }
+
+        if let Some((rect_output, rect)) = &self.drag_spawn_rect {
+            if rect_output == output {
+                let fill = SolidColorBuffer::new(rect.size, [1., 1., 1., 0.12]);
+                push(
+                    SolidColorRenderElement::from_buffer(&fill, rect.loc, 1., Kind::Unspecified)
+                        .into(),
+                );
+
+                let border_color = [1., 1., 1., 1.];
+                let b = 2.;
+                let top = SolidColorBuffer::new((rect.size.w, b), border_color);
+                let bottom = SolidColorBuffer::new((rect.size.w, b), border_color);
+                let left = SolidColorBuffer::new((b, rect.size.h), border_color);
+                let right = SolidColorBuffer::new((b, rect.size.h), border_color);
+                push(
+                    SolidColorRenderElement::from_buffer(&top, rect.loc, 1., Kind::Unspecified)
+                        .into(),
+                );
+                push(
+                    SolidColorRenderElement::from_buffer(
+                        &bottom,
+                        (rect.loc.x, rect.loc.y + rect.size.h - b),
+                        1.,
+                        Kind::Unspecified,
+                    )
+                    .into(),
+                );
+                push(
+                    SolidColorRenderElement::from_buffer(&left, rect.loc, 1., Kind::Unspecified)
+                        .into(),
+                );
+                push(
+                    SolidColorRenderElement::from_buffer(
+                        &right,
+                        (rect.loc.x + rect.size.w - b, rect.loc.y),
+                        1.,
+                        Kind::Unspecified,
+                    )
+                    .into(),
+                );
+            }
         }
 
         // Draw the hotkey overlay on top.

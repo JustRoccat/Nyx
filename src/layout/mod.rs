@@ -543,13 +543,15 @@ pub enum ActivateWindow {
 }
 
 /// Where to put a newly added window.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum AddWindowTarget<'a, W: LayoutElement> {
     /// No particular preference.
     #[default]
     Auto,
     /// On this output.
     Output(&'a Output),
+    /// On this output, at an absolute canvas position.
+    OutputAtPosition(&'a Output, Point<f64, Logical>),
     /// On this workspace.
     Workspace(WorkspaceId),
     /// Next to this existing window.
@@ -1012,6 +1014,21 @@ impl<W: LayoutElement> Layout<W> {
 
                         (mon_idx, MonitorAddWindowTarget::Auto)
                     }
+                    AddWindowTarget::OutputAtPosition(output, pos) => {
+                        let mon_idx = monitors
+                            .iter()
+                            .position(|mon| mon.output == *output)
+                            .unwrap();
+                        let ws_id = monitors[mon_idx].active_workspace_ref().id();
+
+                        (
+                            mon_idx,
+                            MonitorAddWindowTarget::Workspace {
+                                id: ws_id,
+                                pos: Some(pos),
+                            },
+                        )
+                    }
                     AddWindowTarget::Workspace(ws_id) => {
                         let mon_idx = monitors.iter().position(|mon| mon.has_ws(ws_id)).unwrap();
 
@@ -1090,6 +1107,16 @@ impl<W: LayoutElement> Layout<W> {
                         (0, WorkspaceAddWindowTarget::Auto)
                     }
                     AddWindowTarget::Output(_) => panic!(),
+                    AddWindowTarget::OutputAtPosition(_, pos) => {
+                        if workspaces.is_empty() {
+                            workspaces.push(Workspace::new_no_outputs(
+                                self.clock.clone(),
+                                self.options.clone(),
+                            ));
+                        }
+
+                        (0, WorkspaceAddWindowTarget::AtPosition(pos))
+                    }
                     AddWindowTarget::Workspace(ws_id) => {
                         let ws_idx = workspaces.iter().position(|ws| ws.id() == ws_id).unwrap();
                         (ws_idx, WorkspaceAddWindowTarget::Auto)
@@ -2934,6 +2961,29 @@ impl<W: LayoutElement> Layout<W> {
             return;
         };
         workspace.set_window_height(window, change);
+    }
+
+    pub fn set_window_size(&mut self, window: Option<&W::Id>, width: i32, height: i32) {
+        if let Some(InteractiveMoveState::Moving(move_)) = &mut self.interactive_move {
+            if window.is_none() || window == Some(move_.tile.window().id()) {
+                return;
+            }
+        }
+
+        let workspace = if let Some(window) = window {
+            Some(
+                self.workspaces_mut()
+                    .find(|ws| ws.has_window(window))
+                    .unwrap(),
+            )
+        } else {
+            self.active_workspace_mut()
+        };
+
+        let Some(workspace) = workspace else {
+            return;
+        };
+        workspace.set_window_size(window, width, height);
     }
 
     pub fn reset_window_height(&mut self, window: Option<&W::Id>) {

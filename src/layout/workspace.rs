@@ -971,6 +971,25 @@ impl<W: LayoutElement> Workspace<W> {
         }
     }
 
+    pub fn set_window_size(&mut self, window: Option<&W::Id>, width: i32, height: i32) {
+        if window.map_or(self.floating_is_active.get(), |id| {
+            self.floating.has_window(id)
+        }) {
+            self.floating.set_window_width(
+                window,
+                SizeChange::SetFixed(width),
+                true,
+            );
+            self.floating.set_window_height(
+                window,
+                SizeChange::SetFixed(height),
+                true,
+            );
+        } else {
+            self.canvas.set_window_size(window, width, height);
+        }
+    }
+
     pub fn reset_window_height(&mut self, window: Option<&W::Id>) {
         if window.map_or(self.floating_is_active.get(), |id| {
             self.floating.has_window(id)

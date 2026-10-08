@@ -171,6 +171,12 @@ Notes:
   50 canvas units.
 - New windows spawn at the center of the current camera view, focused and
   with the camera centered on them.
+- `spawn-at-drag "alacritty"` (skunkwm dragspawn): press the bind, then
+  press-drag-release LMB to draw a rectangle on the canvas; the command
+  spawns and the next window within 5 s opens at the dragged canvas
+  position with the dragged size. Rectangles smaller than 20 logical px
+  are ignored, `Escape` cancels, and the action is a no-op while dynamic
+  tiling is on.
 - All other binds (fullscreen, floating, window rules, workspaces, monitors,
   `nyx msg` IPC) keep their Niri meaning.
 

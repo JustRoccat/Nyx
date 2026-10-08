@@ -491,6 +491,9 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal: alacritty" { spawn "alacritty"; }
+    // Drag a rectangle on the canvas, then spawn a terminal there (skunkwm dragspawn).
+    // No-op while dynamic tiling is on. The next window within 5 s opens at the dragged position with the dragged size.
+    Super+C hotkey-overlay-title="Spawn Terminal by dragging: rio" { spawn-at-drag "rio"; }
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     Super+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
 

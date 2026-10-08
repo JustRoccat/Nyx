@@ -1076,8 +1076,41 @@ impl<W: LayoutElement> CanvasSpace<W> {
         win.request_size_once(win_size, true);
     }
 
-    pub fn set_window_height(&mut self, window: Option<&W::Id>, change: SizeChange) {
+    /// Sets the tile size (borders included) with a single configure, so the
+    /// width and height cannot clobber each other on a fresh window.
+    pub fn set_window_size(&mut self, window: Option<&W::Id>, width: i32, height: i32) {
         let Some(id) = window.or(self.active_window_id.as_ref()).cloned() else {
+            return;
+        };
+        let Some(idx) = self.idx_of(&id) else {
+            return;
+        };
+
+        self.data[idx].preset_width_idx = None;
+        self.data[idx].full_width_restore = None;
+        self.data[idx].preset_height_idx = None;
+        self.cancel_interactive_resize_for(&id);
+
+        const MAX_PX: f64 = 100000.;
+
+        let tile = &self.tiles[idx];
+        let win_width = tile.window_width_for_tile_width(f64::from(width));
+        let win_height = tile.window_height_for_tile_height(f64::from(height));
+
+        let tile = &mut self.tiles[idx];
+        let win = tile.window_mut();
+        let min_size = win.min_size();
+        let max_size = win.max_size();
+
+        let win_width =
+            ensure_min_max_size(win_width.round().clamp(1., MAX_PX) as i32, min_size.w, max_size.w);
+        let win_height =
+            ensure_min_max_size(win_height.round().clamp(1., MAX_PX) as i32, min_size.h, max_size.h);
+
+        win.request_size_once(Size::from((win_width, win_height)), true);
+    }
+
+    pub fn set_window_height(&mut self, window: Option<&W::Id>, change: SizeChange) {        let Some(id) = window.or(self.active_window_id.as_ref()).cloned() else {
             return;
         };
         let Some(idx) = self.idx_of(&id) else {
